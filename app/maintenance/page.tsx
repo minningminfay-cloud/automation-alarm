@@ -17,12 +17,14 @@ type Maintenance = {
   action_taken: string;
   technician_id: string;
   maintenance_date: string;
+  end_date: string | null;
   status: string;
 };
 
 const statuses = [
   "Pending",
   "In Progress",
+  "Waiting Part",
   "Completed",
 ];
 
@@ -35,11 +37,13 @@ export default function MaintenancePage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");
 
+  // Form
   const [machineId, setMachineId] = useState("");
   const [maintenanceType, setMaintenanceType] = useState("");
   const [problem, setProblem] = useState("");
   const [actionTaken, setActionTaken] = useState("");
   const [maintenanceDate, setMaintenanceDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState("Pending");
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -49,7 +53,10 @@ export default function MaintenancePage() {
   const [machineFilter, setMachineFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [technicianFilter, setTechnicianFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+
+  // Date Range Filter
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   async function loadData() {
     setLoading(true);
@@ -65,6 +72,7 @@ export default function MaintenancePage() {
 
     setUserId(user.id);
 
+    // Get role
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -73,6 +81,7 @@ export default function MaintenancePage() {
 
     setRole(profile?.role ?? "");
 
+    // Get machines
     const {
       data: machineData,
       error: machineError,
@@ -87,6 +96,7 @@ export default function MaintenancePage() {
       setMachines(machineData ?? []);
     }
 
+    // Get maintenance records
     const {
       data: maintenanceData,
       error: maintenanceError,
@@ -110,23 +120,16 @@ export default function MaintenancePage() {
     loadData();
   }, []);
 
-  // =========================
-  // Reset Form
-  // =========================
-
   function resetForm() {
     setMachineId("");
     setMaintenanceType("");
     setProblem("");
     setActionTaken("");
     setMaintenanceDate("");
+    setEndDate("");
     setStatus("Pending");
     setEditingId(null);
   }
-
-  // =========================
-  // Add / Edit
-  // =========================
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -139,10 +142,17 @@ export default function MaintenancePage() {
       !maintenanceType ||
       !problem ||
       !actionTaken ||
-      !maintenanceDate
+      !maintenanceDate ||
+      !endDate
     ) {
+      setMessage("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");
+      return;
+    }
+
+    // End Date must not be before Maintenance Date
+    if (endDate < maintenanceDate) {
       setMessage(
-        "กรุณากรอกข้อมูลที่จำเป็นให้ครบ"
+        "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น"
       );
       return;
     }
@@ -161,9 +171,11 @@ export default function MaintenancePage() {
       action_taken: actionTaken,
       technician_id: userId,
       maintenance_date: maintenanceDate,
+      end_date: endDate,
       status,
     };
 
+    // Edit
     if (editingId) {
       const { error } = await supabase
         .from("maintenance_records")
@@ -176,7 +188,10 @@ export default function MaintenancePage() {
       }
 
       setMessage("แก้ไข Maintenance สำเร็จ");
-    } else {
+    }
+
+    // Add
+    else {
       const { error } = await supabase
         .from("maintenance_records")
         .insert(data);
@@ -193,10 +208,6 @@ export default function MaintenancePage() {
     await loadData();
   }
 
-  // =========================
-  // Edit
-  // =========================
-
   function handleEdit(record: Maintenance) {
     setEditingId(record.id);
 
@@ -209,13 +220,13 @@ export default function MaintenancePage() {
       record.maintenance_date?.slice(0, 10) ?? ""
     );
 
+    setEndDate(
+      record.end_date?.slice(0, 10) ?? ""
+    );
+
     setStatus(record.status);
     setMessage("");
   }
-
-  // =========================
-  // Delete
-  // =========================
 
   async function handleDelete(id: number) {
     if (role !== "admin") {
@@ -248,10 +259,6 @@ export default function MaintenancePage() {
     await loadData();
   }
 
-  // =========================
-  // Get Machine Name
-  // =========================
-
   function getMachineName(machineId: number) {
     const machine = machines.find(
       (item) => item.id === machineId
@@ -265,41 +272,43 @@ export default function MaintenancePage() {
   }
 
   // =========================
-  // Filter
+  // Filters
   // =========================
 
-  const filteredRecords = records.filter(
-    (record) => {
-      const machineMatch =
-        !machineFilter ||
-        String(record.machine_id) ===
-          machineFilter;
+  const filteredRecords = records.filter((record) => {
+    const machineMatch =
+      !machineFilter ||
+      String(record.machine_id) === machineFilter;
 
-      const statusMatch =
-        !statusFilter ||
-        record.status === statusFilter;
+    const statusMatch =
+      !statusFilter ||
+      record.status === statusFilter;
 
-      const technicianMatch =
-        !technicianFilter ||
-        record.technician_id
-          .toLowerCase()
-          .includes(
-            technicianFilter.toLowerCase()
-          );
+    const technicianMatch =
+      !technicianFilter ||
+      record.technician_id
+        .toLowerCase()
+        .includes(technicianFilter.toLowerCase());
 
-      const dateMatch =
-        !dateFilter ||
-        record.maintenance_date?.slice(0, 10) ===
-          dateFilter;
+    const recordDate =
+      record.maintenance_date?.slice(0, 10) ?? "";
 
-      return (
-        machineMatch &&
-        statusMatch &&
-        technicianMatch &&
-        dateMatch
-      );
-    }
-  );
+    const dateFromMatch =
+      !dateFrom || recordDate >= dateFrom;
+
+    const dateToMatch =
+      !dateTo || recordDate <= dateTo;
+
+    const dateMatch =
+      dateFromMatch && dateToMatch;
+
+    return (
+      machineMatch &&
+      statusMatch &&
+      technicianMatch &&
+      dateMatch
+    );
+  });
 
   // =========================
   // Loading
@@ -331,15 +340,17 @@ export default function MaintenancePage() {
     (record) => record.status === "In Progress"
   ).length;
 
+  const waitingPartCount = records.filter(
+    (record) => record.status === "Waiting Part"
+  ).length;
+
   const completedCount = records.filter(
     (record) => record.status === "Completed"
   ).length;
 
   return (
     <main className="min-h-screen bg-slate-950 text-white p-4 md:p-6 relative overflow-hidden">
-
-      {/* Background Decoration */}
-
+      {/* Background decoration */}
       <div className="absolute top-0 left-0 h-72 w-72 rounded-full bg-blue-600/10 blur-3xl pointer-events-none" />
 
       <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
@@ -349,12 +360,9 @@ export default function MaintenancePage() {
         {/* =========================
             Header
         ========================= */}
-
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-
           <div>
             <div className="flex items-center gap-3 mb-2">
-
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-2xl">
                 🔧
               </div>
@@ -368,7 +376,6 @@ export default function MaintenancePage() {
                   Maintenance Management
                 </h1>
               </div>
-
             </div>
 
             <p className="text-slate-400">
@@ -378,22 +385,18 @@ export default function MaintenancePage() {
 
           <button
             onClick={() =>
-              (window.location.href =
-                "/dashboard")
+              (window.location.href = "/dashboard")
             }
             className="rounded-xl border border-slate-700 bg-slate-900 px-5 py-3 font-medium text-slate-200 transition hover:bg-slate-800 hover:border-slate-600"
           >
             ← Dashboard
           </button>
-
         </div>
 
         {/* =========================
             Summary Cards
         ========================= */}
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <SummaryCard
             title="Pending"
             value={pendingCount}
@@ -409,24 +412,28 @@ export default function MaintenancePage() {
           />
 
           <SummaryCard
+            title="Waiting Part"
+            value={waitingPartCount}
+            icon="🔵"
+            description="กำลังรออะไหล่"
+          />
+
+          <SummaryCard
             title="Completed"
             value={completedCount}
             icon="🟢"
             description="ดำเนินการเสร็จแล้ว"
           />
-
         </div>
 
         {/* =========================
             Add / Edit Form
         ========================= */}
-
         {(role === "admin" ||
           role === "technician") && (
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl shadow-black/20 p-6 mb-6">
 
             <div className="flex items-center gap-3 mb-6">
-
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20">
                 {editingId ? "✏️" : "🔧"}
               </div>
@@ -444,7 +451,6 @@ export default function MaintenancePage() {
                     : "บันทึกข้อมูลการบำรุงรักษาใหม่"}
                 </p>
               </div>
-
             </div>
 
             <form
@@ -453,7 +459,6 @@ export default function MaintenancePage() {
             >
 
               {/* Machine */}
-
               <FormSelect
                 label="Machine"
                 value={machineId}
@@ -475,8 +480,7 @@ export default function MaintenancePage() {
                 ))}
               </FormSelect>
 
-              {/* Type */}
-
+              {/* Maintenance Type */}
               <FormInput
                 label="Maintenance Type"
                 value={maintenanceType}
@@ -486,7 +490,6 @@ export default function MaintenancePage() {
               />
 
               {/* Problem */}
-
               <FormTextarea
                 label="Problem"
                 value={problem}
@@ -495,8 +498,7 @@ export default function MaintenancePage() {
                 required
               />
 
-              {/* Action */}
-
+              {/* Action Taken */}
               <FormTextarea
                 label="Action Taken"
                 value={actionTaken}
@@ -506,9 +508,7 @@ export default function MaintenancePage() {
               />
 
               {/* Technician */}
-
               <div>
-
                 <label className="mb-2 block text-sm font-medium text-slate-300">
                   Technician
                 </label>
@@ -522,11 +522,9 @@ export default function MaintenancePage() {
                   disabled
                   className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-500"
                 />
-
               </div>
 
-              {/* Date */}
-
+              {/* Maintenance Date */}
               <FormInput
                 label="Maintenance Date"
                 type="date"
@@ -535,8 +533,16 @@ export default function MaintenancePage() {
                 required
               />
 
-              {/* Status */}
+              {/* End Date */}
+              <FormInput
+                label="End Date"
+                type="date"
+                value={endDate}
+                onChange={setEndDate}
+                required
+              />
 
+              {/* Status */}
               <FormSelect
                 label="Status"
                 value={status}
@@ -553,7 +559,6 @@ export default function MaintenancePage() {
               </FormSelect>
 
               {/* Buttons */}
-
               <div className="flex flex-wrap gap-3 items-end">
 
                 <button
@@ -584,30 +589,23 @@ export default function MaintenancePage() {
         {/* =========================
             Message
         ========================= */}
-
         {message && (
           <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/10 px-5 py-4 text-blue-300 shadow-lg">
-
             <div className="flex items-center gap-3">
               <span>ℹ️</span>
               <span>{message}</span>
             </div>
-
           </div>
         )}
 
         {/* =========================
             Records
         ========================= */}
-
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl shadow-black/20 overflow-hidden">
-
-          {/* Records Header */}
 
           <div className="p-6 border-b border-slate-800">
 
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
-
               <div>
                 <h2 className="text-xl font-semibold">
                   Maintenance Records
@@ -625,15 +623,14 @@ export default function MaintenancePage() {
                 </span>{" "}
                 รายการ
               </div>
-
             </div>
 
-            {/* Filters */}
-
+            {/* =========================
+                Filters
+            ========================= */}
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
 
-              {/* Machine */}
-
+              {/* Machine Filter */}
               <FilterSelect
                 value={machineFilter}
                 onChange={setMachineFilter}
@@ -651,11 +648,9 @@ export default function MaintenancePage() {
                     {machine.name}
                   </option>
                 ))}
-
               </FilterSelect>
 
-              {/* Status */}
-
+              {/* Status Filter */}
               <FilterSelect
                 value={statusFilter}
                 onChange={setStatusFilter}
@@ -672,11 +667,9 @@ export default function MaintenancePage() {
                     {item}
                   </option>
                 ))}
-
               </FilterSelect>
 
-              {/* Technician */}
-
+              {/* Technician Filter */}
               <input
                 value={technicianFilter}
                 onChange={(e) =>
@@ -685,38 +678,63 @@ export default function MaintenancePage() {
                   )
                 }
                 placeholder="🔎 ค้นหา Technician ID"
-                className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
 
-              {/* Date */}
+              {/* Date From */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">
+                  วันที่เริ่มต้น
+                </label>
 
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) =>
-                  setDateFilter(e.target.value)
-                }
-                className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              />
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) =>
+                    setDateFrom(e.target.value)
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  style={{
+                    colorScheme: "dark",
+                  }}
+                />
+              </div>
+
+              {/* Date To */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">
+                  วันที่สิ้นสุด
+                </label>
+
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) =>
+                    setDateTo(e.target.value)
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  style={{
+                    colorScheme: "dark",
+                  }}
+                />
+              </div>
 
             </div>
 
-            {/* Filter Actions */}
-
+            {/* Clear Filters */}
             <div className="flex justify-end mt-4">
-
               <button
                 onClick={() => {
                   setMachineFilter("");
                   setStatusFilter("");
                   setTechnicianFilter("");
-                  setDateFilter("");
+                  setDateFrom("");
+                  setDateTo("");
                 }}
                 className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"
               >
                 ↻ ล้างตัวกรอง
               </button>
-
             </div>
 
           </div>
@@ -724,13 +742,10 @@ export default function MaintenancePage() {
           {/* =========================
               Table
           ========================= */}
-
           <div className="overflow-x-auto">
-
-            <table className="w-full min-w-[1200px]">
+            <table className="w-full min-w-[1350px]">
 
               <thead className="bg-slate-950/80">
-
                 <tr className="border-b border-slate-800">
 
                   <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -754,7 +769,11 @@ export default function MaintenancePage() {
                   </th>
 
                   <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Date
+                    Start Date
+                  </th>
+
+                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    End Date
                   </th>
 
                   <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -766,20 +785,15 @@ export default function MaintenancePage() {
                   </th>
 
                 </tr>
-
               </thead>
 
               <tbody>
-
                 {filteredRecords.length === 0 ? (
-
                   <tr>
-
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="px-6 py-16 text-center"
                     >
-
                       <div className="text-4xl mb-3">
                         🛠️
                       </div>
@@ -791,167 +805,148 @@ export default function MaintenancePage() {
                       <p className="text-sm text-slate-500 mt-1">
                         ลองเปลี่ยนเงื่อนไขการค้นหาหรือตัวกรอง
                       </p>
-
                     </td>
-
                   </tr>
-
                 ) : (
+                  filteredRecords.map((record) => {
+                    const machineName =
+                      getMachineName(
+                        record.machine_id
+                      );
 
-                  filteredRecords.map((record) => (
+                    const machineParts =
+                      machineName.split(" - ");
 
-                    <tr
-                      key={record.id}
-                      className="border-b border-slate-800/70 transition hover:bg-slate-800/40"
-                    >
+                    return (
+                      <tr
+                        key={record.id}
+                        className="border-b border-slate-800/70 transition hover:bg-slate-800/40"
+                      >
 
-                      {/* Machine */}
+                        {/* Machine */}
+                        <td className="px-5 py-5">
+                          <div className="flex items-center gap-3">
 
-                      <td className="px-5 py-5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800 text-sm">
+                              🏭
+                            </div>
 
-                        <div className="flex items-center gap-3">
+                            <div>
+                              <p className="font-medium text-white">
+                                {machineParts[0]}
+                              </p>
 
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800 text-sm">
-                            🏭
-                          </div>
-
-                          <div>
-
-                            <p className="font-medium text-white">
-                              {
-                                getMachineName(
-                                  record.machine_id
-                                ).split(" - ")[0]
-                              }
-                            </p>
-
-                            <p className="text-xs text-slate-500">
-                              {
-                                getMachineName(
-                                  record.machine_id
-                                ).split(" - ")[1]
-                              }
-                            </p>
+                              <p className="text-xs text-slate-500">
+                                {machineParts[1]}
+                              </p>
+                            </div>
 
                           </div>
+                        </td>
 
-                        </div>
+                        {/* Type */}
+                        <td className="px-5 py-5">
+                          <span className="inline-flex rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-300">
+                            {record.maintenance_type}
+                          </span>
+                        </td>
 
-                      </td>
+                        {/* Problem */}
+                        <td className="px-5 py-5 max-w-xs">
+                          <p className="text-sm text-slate-300">
+                            {record.problem}
+                          </p>
+                        </td>
 
-                      {/* Type */}
+                        {/* Action */}
+                        <td className="px-5 py-5 max-w-xs">
+                          <p className="text-sm text-slate-300">
+                            {record.action_taken}
+                          </p>
+                        </td>
 
-                      <td className="px-5 py-5">
+                        {/* Technician */}
+                        <td className="px-5 py-5">
+                          <span className="font-mono text-xs text-slate-400 break-all">
+                            {record.technician_id}
+                          </span>
+                        </td>
 
-                        <span className="inline-flex rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-300">
-                          {record.maintenance_type}
-                        </span>
+                        {/* Start Date */}
+                        <td className="px-5 py-5">
+                          <p className="text-sm text-slate-300">
+                            {record.maintenance_date?.slice(
+                              0,
+                              10
+                            )}
+                          </p>
+                        </td>
 
-                      </td>
+                        {/* End Date */}
+                        <td className="px-5 py-5">
+                          <p className="text-sm text-slate-300">
+                            {record.end_date
+                              ? record.end_date.slice(
+                                  0,
+                                  10
+                                )
+                              : "-"}
+                          </p>
+                        </td>
 
-                      {/* Problem */}
+                        {/* Status */}
+                        <td className="px-5 py-5">
+                          <StatusBadge
+                            status={record.status}
+                          />
+                        </td>
 
-                      <td className="px-5 py-5 max-w-xs">
+                        {/* Actions */}
+                        <td className="px-5 py-5">
+                          <div className="flex gap-2">
 
-                        <p className="text-sm text-slate-300">
-                          {record.problem}
-                        </p>
-
-                      </td>
-
-                      {/* Action */}
-
-                      <td className="px-5 py-5 max-w-xs">
-
-                        <p className="text-sm text-slate-300">
-                          {record.action_taken}
-                        </p>
-
-                      </td>
-
-                      {/* Technician */}
-
-                      <td className="px-5 py-5">
-
-                        <span className="font-mono text-xs text-slate-400 break-all">
-                          {record.technician_id}
-                        </span>
-
-                      </td>
-
-                      {/* Date */}
-
-                      <td className="px-5 py-5">
-
-                        <p className="text-sm text-slate-300">
-                          {record.maintenance_date}
-                        </p>
-
-                      </td>
-
-                      {/* Status */}
-
-                      <td className="px-5 py-5">
-
-                        <StatusBadge
-                          status={record.status}
-                        />
-
-                      </td>
-
-                      {/* Actions */}
-
-                      <td className="px-5 py-5">
-
-                        <div className="flex gap-2">
-
-                          <button
-                            onClick={() =>
-                              handleEdit(record)
-                            }
-                            className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-sm font-medium text-yellow-300 transition hover:bg-yellow-500/20"
-                          >
-                            ✏️ แก้ไข
-                          </button>
-
-                          {role === "admin" && (
                             <button
                               onClick={() =>
-                                handleDelete(
-                                  record.id
-                                )
+                                handleEdit(record)
                               }
-                              className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/20"
+                              className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-sm font-medium text-yellow-300 transition hover:bg-yellow-500/20"
                             >
-                              🗑 ลบ
+                              ✏️ แก้ไข
                             </button>
-                          )}
 
-                        </div>
+                            {role === "admin" && (
+                              <button
+                                onClick={() =>
+                                  handleDelete(
+                                    record.id
+                                  )
+                                }
+                                className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/20"
+                              >
+                                🗑 ลบ
+                              </button>
+                            )}
 
-                      </td>
+                          </div>
+                        </td>
 
-                    </tr>
-
-                  ))
-
+                      </tr>
+                    );
+                  })
                 )}
-
               </tbody>
 
             </table>
-
           </div>
 
         </div>
-
       </div>
     </main>
   );
 }
 
 /* =========================================================
-   Components
+   Summary Card
 ========================================================= */
 
 function SummaryCard({
@@ -971,7 +966,6 @@ function SummaryCard({
       <div className="flex items-start justify-between">
 
         <div>
-
           <p className="text-sm font-medium text-slate-400">
             {title}
           </p>
@@ -983,7 +977,6 @@ function SummaryCard({
           <p className="mt-1 text-xs text-slate-500">
             {description}
           </p>
-
         </div>
 
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-xl">
@@ -991,10 +984,13 @@ function SummaryCard({
         </div>
 
       </div>
-
     </div>
   );
 }
+
+/* =========================================================
+   Form Input
+========================================================= */
 
 function FormInput({
   label,
@@ -1033,11 +1029,20 @@ function FormInput({
         placeholder={placeholder}
         required={required}
         className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+        style={
+          type === "date"
+            ? { colorScheme: "dark" }
+            : undefined
+        }
       />
 
     </label>
   );
 }
+
+/* =========================================================
+   Form Textarea
+========================================================= */
 
 function FormTextarea({
   label,
@@ -1080,6 +1085,10 @@ function FormTextarea({
   );
 }
 
+/* =========================================================
+   Form Select
+========================================================= */
+
 function FormSelect({
   label,
   value,
@@ -1121,6 +1130,10 @@ function FormSelect({
   );
 }
 
+/* =========================================================
+   Filter Select
+========================================================= */
+
 function FilterSelect({
   value,
   onChange,
@@ -1143,6 +1156,10 @@ function FilterSelect({
   );
 }
 
+/* =========================================================
+   Status Badge
+========================================================= */
+
 function StatusBadge({
   status,
 }: {
@@ -1155,6 +1172,9 @@ function StatusBadge({
     "In Progress":
       "border-yellow-500/20 bg-yellow-500/10 text-yellow-300",
 
+    "Waiting Part":
+      "border-blue-500/20 bg-blue-500/10 text-blue-300",
+
     Completed:
       "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
   };
@@ -1162,6 +1182,7 @@ function StatusBadge({
   const icons: Record<string, string> = {
     Pending: "🟠",
     "In Progress": "🟡",
+    "Waiting Part": "🔵",
     Completed: "🟢",
   };
 
@@ -1172,7 +1193,10 @@ function StatusBadge({
         "border-slate-700 bg-slate-800 text-slate-300"
       }`}
     >
-      <span>{icons[status] ?? "⚪"}</span>
+      <span>
+        {icons[status] ?? "⚪"}
+      </span>
+
       {status}
     </span>
   );
