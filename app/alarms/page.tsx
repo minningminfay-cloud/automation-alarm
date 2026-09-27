@@ -47,6 +47,10 @@ export default function AlarmsPage() {
   const [alarmCodeFilter, setAlarmCodeFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
 
+  // =========================
+  // Load Data
+  // =========================
+
   async function loadData() {
     setLoading(true);
 
@@ -148,6 +152,7 @@ export default function AlarmsPage() {
       return;
     }
 
+    // Check duplicate Alarm Code
     const {
       data: duplicateAlarms,
       error: duplicateError,
@@ -174,16 +179,25 @@ export default function AlarmsPage() {
       return;
     }
 
+    // =========================
+    // Alarm Data
+    // =========================
+    // เลือกวันที่จาก input type="date"
+    // แล้วบันทึกเวลาเป็น 00:00:00
     const alarmData = {
       machine_id: Number(machineId),
       alarm_code: cleanAlarmCode,
       description: description.trim(),
       alarm_datetime: new Date(
-        alarmDatetime
+        `${alarmDatetime}T00:00:00`
       ).toISOString(),
       cause: cause.trim() || null,
       status,
     };
+
+    // =========================
+    // Edit
+    // =========================
 
     if (editingId) {
       const { error } = await supabase
@@ -198,6 +212,10 @@ export default function AlarmsPage() {
 
       setMessage("แก้ไข Alarm สำเร็จ");
     } else {
+      // =========================
+      // Add
+      // =========================
+
       const { error } = await supabase
         .from("alarms")
         .insert(alarmData);
@@ -224,6 +242,8 @@ export default function AlarmsPage() {
     setAlarmCode(alarm.alarm_code);
     setDescription(alarm.description);
 
+    // Convert database datetime
+    // to YYYY-MM-DD for input type="date"
     const date = new Date(alarm.alarm_datetime);
 
     const localDate = new Date(
@@ -231,9 +251,10 @@ export default function AlarmsPage() {
         date.getTimezoneOffset() * 60000
     )
       .toISOString()
-      .slice(0, 16);
+      .slice(0, 10);
 
     setAlarmDatetime(localDate);
+
     setCause(alarm.cause ?? "");
     setStatus(alarm.status);
     setMessage("");
@@ -353,6 +374,7 @@ export default function AlarmsPage() {
       <main className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
         <div className="text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-blue-500" />
+
           <p className="text-slate-400">
             กำลังโหลดข้อมูล Alarm...
           </p>
@@ -360,6 +382,10 @@ export default function AlarmsPage() {
       </main>
     );
   }
+
+  // =========================
+  // Summary
+  // =========================
 
   const openCount = alarms.filter(
     (alarm) => alarm.status === "Open"
@@ -372,6 +398,10 @@ export default function AlarmsPage() {
   const closedCount = alarms.filter(
     (alarm) => alarm.status === "Closed"
   ).length;
+
+  // =========================
+  // Page
+  // =========================
 
   return (
     <main className="min-h-screen bg-slate-950 text-white p-4 md:p-6 relative overflow-hidden">
@@ -391,12 +421,15 @@ export default function AlarmsPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
 
           <div>
+
             <div className="flex items-center gap-3 mb-2">
+
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 text-2xl">
                 🚨
               </div>
 
               <div>
+
                 <p className="text-xs uppercase tracking-[0.25em] text-red-400">
                   Industrial System
                 </p>
@@ -404,12 +437,15 @@ export default function AlarmsPage() {
                 <h1 className="text-3xl font-bold tracking-tight">
                   Alarm Management
                 </h1>
+
               </div>
+
             </div>
 
             <p className="text-slate-400">
               จัดการและติดตาม Alarm ของเครื่องจักร
             </p>
+
           </div>
 
           <button
@@ -466,6 +502,7 @@ export default function AlarmsPage() {
               </div>
 
               <div>
+
                 <h2 className="text-xl font-semibold">
                   {editingId
                     ? "แก้ไข Alarm"
@@ -477,6 +514,7 @@ export default function AlarmsPage() {
                     ? "แก้ไขข้อมูล Alarm ที่เลือก"
                     : "บันทึกข้อมูล Alarm ใหม่เข้าสู่ระบบ"}
                 </p>
+
               </div>
 
             </div>
@@ -493,6 +531,7 @@ export default function AlarmsPage() {
                 value={machineId}
                 onChange={setMachineId}
               >
+
                 <option value="">
                   -- เลือกเครื่องจักร --
                 </option>
@@ -506,6 +545,7 @@ export default function AlarmsPage() {
                     {machine.name}
                   </option>
                 ))}
+
               </FormSelect>
 
               {/* Alarm Code */}
@@ -528,11 +568,11 @@ export default function AlarmsPage() {
                 required
               />
 
-              {/* Date */}
+              {/* Alarm Date */}
 
               <FormInput
-                label="Date / Time"
-                type="datetime-local"
+                label="Alarm Date"
+                type="date"
                 value={alarmDatetime}
                 onChange={setAlarmDatetime}
                 required
@@ -558,6 +598,7 @@ export default function AlarmsPage() {
                   )
                 }
               >
+
                 {statuses.map((item) => (
                   <option
                     key={item}
@@ -566,6 +607,7 @@ export default function AlarmsPage() {
                     {item}
                   </option>
                 ))}
+
               </FormSelect>
 
               {/* Buttons */}
@@ -594,6 +636,7 @@ export default function AlarmsPage() {
               </div>
 
             </form>
+
           </div>
         )}
 
@@ -603,10 +646,12 @@ export default function AlarmsPage() {
 
         {message && (
           <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/10 px-5 py-4 text-blue-300 shadow-lg">
+
             <div className="flex items-center gap-3">
               <span>ℹ️</span>
               <span>{message}</span>
             </div>
+
           </div>
         )}
 
@@ -623,6 +668,7 @@ export default function AlarmsPage() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
 
               <div>
+
                 <h2 className="text-xl font-semibold">
                   Alarm List
                 </h2>
@@ -630,14 +676,19 @@ export default function AlarmsPage() {
                 <p className="text-sm text-slate-400 mt-1">
                   รายการ Alarm ทั้งหมดในระบบ
                 </p>
+
               </div>
 
               <div className="rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-300">
+
                 พบ{" "}
+
                 <span className="font-bold text-white">
                   {filteredAlarms.length}
                 </span>{" "}
+
                 รายการ
+
               </div>
 
             </div>
@@ -652,6 +703,7 @@ export default function AlarmsPage() {
                 value={machineFilter}
                 onChange={setMachineFilter}
               >
+
                 <option value="">
                   ทุกเครื่องจักร
                 </option>
@@ -665,6 +717,7 @@ export default function AlarmsPage() {
                     {machine.name}
                   </option>
                 ))}
+
               </FilterSelect>
 
               {/* Status */}
@@ -673,6 +726,7 @@ export default function AlarmsPage() {
                 value={statusFilter}
                 onChange={setStatusFilter}
               >
+
                 <option value="">
                   ทุกสถานะ
                 </option>
@@ -685,6 +739,7 @@ export default function AlarmsPage() {
                     {item}
                   </option>
                 ))}
+
               </FilterSelect>
 
               {/* Alarm Code */}
@@ -698,7 +753,7 @@ export default function AlarmsPage() {
                 className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
 
-              {/* Date */}
+              {/* Date Filter */}
 
               <input
                 type="date"
@@ -706,6 +761,9 @@ export default function AlarmsPage() {
                 onChange={(e) =>
                   setDateFilter(e.target.value)
                 }
+                style={{
+                  colorScheme: "dark",
+                }}
                 className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
 
@@ -822,6 +880,7 @@ export default function AlarmsPage() {
                           </div>
 
                           <div>
+
                             <p className="font-medium text-white">
                               {
                                 getMachineName(
@@ -837,6 +896,7 @@ export default function AlarmsPage() {
                                 ).split(" - ")[1]
                               }
                             </p>
+
                           </div>
 
                         </div>
@@ -916,6 +976,7 @@ export default function AlarmsPage() {
                             }
                             className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
                           >
+
                             {statuses.map((item) => (
                               <option
                                 key={item}
@@ -924,6 +985,7 @@ export default function AlarmsPage() {
                                 {item}
                               </option>
                             ))}
+
                           </select>
 
                         ) : (
@@ -981,6 +1043,7 @@ export default function AlarmsPage() {
         </div>
 
       </div>
+
     </main>
   );
 }
@@ -1006,6 +1069,7 @@ function SummaryCard({
       <div className="flex items-start justify-between">
 
         <div>
+
           <p className="text-sm font-medium text-slate-400">
             {title}
           </p>
@@ -1017,6 +1081,7 @@ function SummaryCard({
           <p className="mt-1 text-xs text-slate-500">
             {description}
           </p>
+
         </div>
 
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-xl">
@@ -1048,10 +1113,15 @@ function FormInput({
     <label className="block">
 
       <span className="mb-2 block text-sm font-medium text-slate-300">
+
         {label}
+
         {required && (
-          <span className="text-red-400 ml-1">*</span>
+          <span className="text-red-400 ml-1">
+            *
+          </span>
         )}
+
       </span>
 
       <input
@@ -1062,6 +1132,11 @@ function FormInput({
         }
         placeholder={placeholder}
         required={required}
+        style={
+          type === "date"
+            ? { colorScheme: "dark" }
+            : undefined
+        }
         className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
       />
 
@@ -1131,8 +1206,10 @@ function StatusBadge({
 }) {
   const styles = {
     Open: "border-red-500/20 bg-red-500/10 text-red-300",
+
     "In Progress":
       "border-yellow-500/20 bg-yellow-500/10 text-yellow-300",
+
     Closed:
       "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
   };
