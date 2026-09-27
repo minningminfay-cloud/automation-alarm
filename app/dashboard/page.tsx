@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "./LogoutButton";
+import AlarmChart from "./AlarmChart";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -58,6 +59,29 @@ export default async function DashboardPage() {
     .select("*", { count: "exact", head: true })
     .eq("status", "Maintenance");
 
+  // ================= ALARM CHART DATA =================
+
+  const { data: alarms } = await supabase
+    .from("alarms")
+    .select("status");
+
+  const alarmChartData = [
+    {
+      name: "Open",
+      value: alarms?.filter((alarm) => alarm.status === "Open").length ?? 0,
+    },
+    {
+      name: "In Progress",
+      value:
+        alarms?.filter((alarm) => alarm.status === "In Progress").length ?? 0,
+    },
+    {
+      name: "Closed",
+      value:
+        alarms?.filter((alarm) => alarm.status === "Closed").length ?? 0,
+    },
+  ];
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       {/* Background decoration */}
@@ -71,12 +95,10 @@ export default async function DashboardPage() {
         {/* ================= HEADER ================= */}
 
         <header className="mb-8 rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-2xl backdrop-blur">
-
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
 
             <div className="flex items-center gap-4">
 
-              {/* Logo */}
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
                 <span className="text-2xl">⚙️</span>
               </div>
@@ -117,7 +139,6 @@ export default async function DashboardPage() {
             </div>
 
           </div>
-
         </header>
 
         {/* ================= WELCOME ================= */}
@@ -165,6 +186,24 @@ export default async function DashboardPage() {
             description="รายการบำรุงรักษา"
             accent="amber"
           />
+
+        </section>
+
+        {/* ================= ALARM CHART ================= */}
+
+        <section className="mb-8">
+
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-white">
+              Alarm Overview
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              จำนวน Alarm แยกตามสถานะ
+            </p>
+          </div>
+
+          <AlarmChart data={alarmChartData} />
 
         </section>
 
