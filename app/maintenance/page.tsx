@@ -905,15 +905,20 @@ export default function MaintenancePage() {
                         <td className="px-5 py-5">
                           <div className="flex gap-2">
 
-                            <button
-                              onClick={() =>
-                                handleEdit(record)
-                              }
-                              className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-sm font-medium text-yellow-300 transition hover:bg-yellow-500/20"
-                            >
-                              ✏️ แก้ไข
-                            </button>
+                            {/* Admin + Technician can edit */}
+                            {(role === "admin" ||
+                              role === "technician") && (
+                              <button
+                                onClick={() =>
+                                  handleEdit(record)
+                                }
+                                className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-sm font-medium text-yellow-300 transition hover:bg-yellow-500/20"
+                              >
+                                ✏️ แก้ไข
+                              </button>
+                            )}
 
+                            {/* Admin only can delete */}
                             {role === "admin" && (
                               <button
                                 onClick={() =>
