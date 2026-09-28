@@ -1,15 +1,16 @@
 # Alarm & Maintenance Management System
 
-ระบบ Web Application สำหรับสนับสนุนงาน Automation และการบำรุงรักษาเครื่องจักรในโรงงาน โดยใช้ข้อมูล Machine, Alarm และ Maintenance เพื่อช่วยให้ผู้ใช้งานสามารถติดตามสถานะเครื่องจักรและจัดการงานบำรุงรักษาได้อย่างเป็นระบบ
+ระบบ Web Application สำหรับสนับสนุนงาน Automation และงานบำรุงรักษาเครื่องจักรในโรงงาน โดยใช้ข้อมูล Machine, Alarm และ Maintenance เพื่อช่วยให้ผู้ใช้งานสามารถติดตามสถานะเครื่องจักร จัดการ Alarm และบันทึกงานบำรุงรักษาได้อย่างเป็นระบบ
 
 ## Project Overview
 
-ระบบนี้พัฒนาขึ้นเพื่อใช้ในการจัดการข้อมูลและสนับสนุนงานบำรุงรักษาเครื่องจักรในโรงงาน โดยมีระบบ Login และกำหนดสิทธิ์การใช้งานตามบทบาทของผู้ใช้
+ระบบนี้พัฒนาขึ้นเพื่อใช้ในการจัดการข้อมูลและสนับสนุนงานบำรุงรักษาเครื่องจักรในโรงงาน โดยมีระบบ Authentication และกำหนดสิทธิ์การใช้งานตามบทบาทของผู้ใช้
 
-ระบบรองรับ 2 บทบาทหลัก:
+ระบบรองรับ 3 บทบาท:
 
 * **Admin** – จัดการข้อมูล Machine, Alarm และ Maintenance
 * **Technician** – ดูข้อมูลเครื่องจักร บันทึกและแก้ไข Maintenance และเปลี่ยนสถานะ Alarm
+* **Viewer** – ดูข้อมูลภายในระบบแบบ Read-only
 
 ## Main Features
 
@@ -17,8 +18,9 @@
 
 * Login / Logout
 * Authentication ด้วย Supabase
-* รองรับ Admin และ Technician
-* กำหนดสิทธิ์การเข้าถึงแต่ละส่วนของระบบตาม Role
+* รองรับ Admin, Technician และ Viewer
+* กำหนดสิทธิ์การเข้าถึงตาม Role
+* Viewer สามารถดูข้อมูลได้โดยไม่สามารถแก้ไขข้อมูล
 
 ### 2. Machine Management
 
@@ -37,7 +39,13 @@ Admin สามารถจัดการข้อมูลเครื่อ�
 * Alarm
 * Maintenance
 
-รองรับการเพิ่ม แก้ไข ลบ และค้นหาข้อมูล Machine
+รองรับ:
+
+* เพิ่ม Machine
+* แก้ไข Machine
+* ลบ Machine
+* ค้นหา Machine
+* กรองข้อมูล Machine
 
 ### 3. Alarm Management
 
@@ -46,7 +54,7 @@ Admin สามารถจัดการข้อมูลเครื่อ�
 * Machine
 * Alarm Code
 * Description
-* Date / Time
+* Alarm Date
 * Cause
 * Status
 
@@ -56,7 +64,17 @@ Admin สามารถจัดการข้อมูลเครื่อ�
 * In Progress
 * Closed
 
-รองรับการค้นหาและกรองข้อมูล Alarm
+ความสามารถเพิ่มเติม:
+
+* เพิ่ม / แก้ไข / ลบ Alarm สำหรับ Admin
+* Technician สามารถเปลี่ยนสถานะ Alarm
+* Viewer สามารถดูข้อมูล Alarm ได้
+* ค้นหาและกรอง Alarm
+* Filter ตาม Machine
+* Filter ตาม Status
+* Filter ตาม Alarm Code
+* Filter ตามวันที่
+* ตรวจสอบ Alarm Code ซ้ำ
 
 ### 4. Maintenance Management
 
@@ -67,24 +85,39 @@ Admin สามารถจัดการข้อมูลเครื่อ�
 * Problem
 * Action Taken
 * Technician
-* Date
+* Start Date
+* End Date
 * Status
 
 สถานะ Maintenance:
 
 * Pending
 * In Progress
+* Waiting Part
 * Completed
+
+ความสามารถเพิ่มเติม:
+
+* Admin สามารถเพิ่ม แก้ไข และลบข้อมูล
+* Technician สามารถบันทึกและแก้ไข Maintenance
+* Viewer สามารถดูข้อมูลได้
+* ระบุ Technician ที่รับผิดชอบ
+* กำหนดวันที่เริ่ม Maintenance
+* กำหนดวันที่สิ้นสุด Maintenance
+* ตรวจสอบไม่ให้ End Date ก่อน Start Date
+* รองรับสถานะ Waiting Part
 
 ### 5. Search & Filter
 
-ระบบรองรับการค้นหาและกรองข้อมูลตามเงื่อนไขต่าง ๆ เช่น
+ระบบรองรับการค้นหาและกรองข้อมูลหลายเงื่อนไข เช่น
 
 * Machine
 * Status
 * Alarm Code
 * Technician
 * Date
+
+มีการใช้ Filter ในหน้า Machine, Alarm และ Maintenance เพื่อช่วยให้ค้นหาข้อมูลได้สะดวกขึ้น
 
 ### 6. Dashboard
 
@@ -98,7 +131,13 @@ Dashboard แสดงข้อมูลสรุปของระบบ เช
 * Total Alarms
 * Total Maintenance
 
-ช่วยให้สามารถดูภาพรวมของสถานะเครื่องจักรและงานบำรุงรักษาได้ง่ายขึ้น
+นอกจากนี้ยังมีกราฟแสดงจำนวน Alarm แยกตามสถานะ:
+
+* Open
+* In Progress
+* Closed
+
+ช่วยให้ผู้ใช้งานเห็นภาพรวมของสถานะเครื่องจักร Alarm และงาน Maintenance ได้ง่ายขึ้น
 
 ### 7. Input Validation
 
@@ -107,7 +146,41 @@ Dashboard แสดงข้อมูลสรุปของระบบ เช
 * ตรวจสอบ Required Fields
 * ตรวจสอบ Machine ID ซ้ำ
 * ตรวจสอบ Alarm Code ซ้ำ
+* ตรวจสอบ End Date ไม่ให้ก่อน Start Date
+* ตรวจสอบข้อมูลที่จำเป็นก่อนบันทึก
 * แสดงข้อความแจ้งเตือนเมื่อข้อมูลไม่ถูกต้อง
+
+## Bonus Features / Change Requests
+
+ระบบมีการพัฒนาความสามารถเพิ่มเติมจาก Requirement หลัก ได้แก่
+
+### Viewer Role
+
+เพิ่ม Role **Viewer** สำหรับผู้ใช้งานที่ต้องการดูข้อมูลภายในระบบแบบ Read-only
+
+### Alarm Count Chart
+
+เพิ่มกราฟแสดงจำนวน Alarm แยกตามสถานะบน Dashboard
+
+### Waiting Part
+
+เพิ่มสถานะ **Waiting Part** สำหรับ Maintenance ที่อยู่ระหว่างรออะไหล่
+
+### Maintenance End Date
+
+เพิ่มข้อมูลวันที่สิ้นสุดของ Maintenance เพื่อให้สามารถบันทึกช่วงเวลาการบำรุงรักษาได้
+
+### Technician Information
+
+เพิ่มข้อมูล Technician ที่รับผิดชอบงาน Maintenance
+
+### Date Filter
+
+เพิ่มการกรองข้อมูลตามวันที่ในส่วนของ Alarm และ Maintenance
+
+### Additional Validation
+
+เพิ่ม Validation เพื่อป้องกันข้อมูลผิดพลาด เช่น ข้อมูลซ้ำและวันที่ไม่ถูกต้อง
 
 ## Technology Stack
 
@@ -117,6 +190,7 @@ Dashboard แสดงข้อมูลสรุปของระบบ เช
 * **Tailwind CSS**
 * **Supabase**
 * **PostgreSQL**
+* **Recharts**
 * **GitHub**
 * **GitHub Actions**
 * **Vercel**
@@ -131,9 +205,15 @@ Dashboard แสดงข้อมูลสรุปของระบบ เช
 เก็บข้อมูลผู้ใช้งานและ Role
 
 * id
-* email
+* full_name
 * role
 * created_at
+
+Role ที่รองรับ:
+
+* admin
+* technician
+* viewer
 
 ### machines
 
@@ -171,7 +251,8 @@ Dashboard แสดงข้อมูลสรุปของระบบ เช
 * problem
 * action_taken
 * technician_id
-* date
+* maintenance_date
+* end_date
 * status
 * created_at
 
@@ -185,6 +266,7 @@ Dashboard แสดงข้อมูลสรุปของระบบ เช
 
 ```text
 automation-alarm/
+
 ├── app/
 │   ├── alarms/
 │   ├── dashboard/
@@ -213,6 +295,7 @@ automation-alarm/
 
 ```bash
 git clone https://github.com/minningminfay-cloud/automation-alarm.git
+
 cd automation-alarm
 ```
 
@@ -255,18 +338,21 @@ npm run build
 
 โปรเจกต์มีการใช้ GitHub Actions สำหรับตรวจสอบโปรเจกต์เมื่อมีการ Push หรือ Pull Request
 
-Workflow จะทำงานดังนี้:
+Workflow ทำงานในขั้นตอนหลักดังนี้:
 
 1. Checkout source code
 2. Setup Node.js
 3. Install dependencies
-4. Build Next.js project
+4. Configure required environment variables
+5. Build Next.js project
 
 Workflow file:
 
 ```text
 .github/workflows/ci.yml
 ```
+
+GitHub Actions ใช้สำหรับตรวจสอบว่าโปรเจกต์สามารถติดตั้ง Dependencies และ Build ได้สำเร็จ
 
 ## Deployment
 
@@ -276,7 +362,7 @@ Workflow file:
 
 https://automation-alarm.vercel.app/
 
-สามารถเปิดระบบผ่าน URL ดังกล่าวเพื่อใช้งาน Web Application ได้
+สามารถเปิด URL ดังกล่าวเพื่อใช้งาน Web Application ได้
 
 ## GitHub Repository
 
@@ -284,7 +370,7 @@ https://github.com/minningminfay-cloud/automation-alarm
 
 ## AI Usage
 
-ในการพัฒนาโปรเจกต์นี้มีการใช้ AI เป็นเครื่องมือช่วยในการพัฒนา โดยใช้ในหลายขั้นตอน เช่น
+ในการพัฒนาโปรเจกต์นี้มีการใช้ AI เป็นเครื่องมือช่วยในการวิเคราะห์ ออกแบบ และพัฒนาระบบ เช่น
 
 * วิเคราะห์ Requirements จากโจทย์
 * ออกแบบโครงสร้างระบบ
@@ -293,20 +379,47 @@ https://github.com/minningminfay-cloud/automation-alarm
 * ออกแบบ UI/UX
 * ช่วยเขียน SQL สำหรับ Supabase
 * วิเคราะห์และแก้ไข Error
-* ตรวจสอบ Validation
-* ช่วยตรวจสอบ GitHub Actions และ Deployment
+* ช่วยตรวจสอบ Validation
+* ช่วยตรวจสอบ GitHub Actions
+* ช่วยตรวจสอบ Deployment
 * ช่วยปรับปรุงโครงสร้างและความถูกต้องของโค้ด
+* ช่วยพัฒนา Feature เพิ่มเติมตาม Change Request
 
-AI ถูกใช้เป็นเครื่องมือช่วยในการวิเคราะห์และพัฒนา โดยผู้พัฒนาเป็นผู้ตรวจสอบ ทดสอบ และปรับแก้ผลลัพธ์ก่อนนำไปใช้งาน
+AI ถูกใช้เป็นเครื่องมือช่วยในการวิเคราะห์และพัฒนา โดยผู้พัฒนาเป็นผู้ตรวจสอบ ทดสอบ และปรับแก้ผลลัพธ์ก่อนนำไปใช้งานจริง
 
 ## Development
 
-โปรเจกต์มีการพัฒนาและบันทึกการเปลี่ยนแปลงผ่าน Git โดยมี Commit History เพื่อแสดงลำดับการพัฒนาระบบในแต่ละขั้นตอน
+โปรเจกต์มีการพัฒนาและบันทึกการเปลี่ยนแปลงผ่าน Git โดยใช้ Commit History เพื่อแสดงลำดับการพัฒนาระบบในแต่ละขั้นตอน
 
-## Author
+ตัวอย่างการพัฒนา Feature:
+
+* Initial Alarm & Maintenance Management System
+* GitHub Actions CI
+* Supabase Environment Configuration
+* Maintenance Waiting Part
+* Maintenance End Date
+* Alarm Count Chart
+* Viewer Role
+* Alarm Date Picker
+
+## Future Improvements
+
+ความสามารถเพิ่มเติมที่สามารถพัฒนาได้ในอนาคต ได้แก่
+
+* Machine History
+* Audit Log
+* Export CSV / Excel
+* Notification
+* Advanced Filter
+* Responsive UI improvements
+* Dark Mode
+
+## Authors
 
 **นางสาววรรณนิภา ศักดิ์พรหม**
+
 **นางสาวแพรวพรรณ ภูมิผิว**
+
 **นางสาวโชติกา พุ่มอ่ำ**
 
 Computer Engineering Student
