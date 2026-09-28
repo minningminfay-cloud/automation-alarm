@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import ExportCsvButton from "./ExportCsvButton";
 
 type AuditLog = {
   id: number;
@@ -150,6 +151,7 @@ export default function AuditLogsPage() {
     const month = String(
       value.getMonth() + 1
     ).padStart(2, "0");
+
     const day = String(
       value.getDate()
     ).padStart(2, "0");
@@ -176,6 +178,18 @@ export default function AuditLogsPage() {
       dateMatch
     );
   });
+
+  // ================= EXPORT DATA =================
+
+  const exportLogs = filteredLogs.map((log) => ({
+    id: log.id,
+    user_name: getUserName(log.user_id),
+    user_role: getUserRole(log.user_id),
+    action: log.action,
+    table_name: getTableLabel(log.table_name),
+    record_id: log.record_id || "-",
+    created_at: formatDateTime(log.created_at),
+  }));
 
   function clearFilters() {
     setActionFilter("");
@@ -211,8 +225,7 @@ export default function AuditLogsPage() {
     const labels: Record<string, string> = {
       machines: "Machines",
       alarms: "Alarms",
-      maintenance_records:
-        "Maintenance",
+      maintenance_records: "Maintenance",
     };
 
     return labels[tableName] || tableName;
@@ -222,6 +235,7 @@ export default function AuditLogsPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="rounded-2xl border border-slate-800 bg-slate-900 px-8 py-6 text-center shadow-xl">
+
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-2xl">
             📝
           </div>
@@ -229,6 +243,7 @@ export default function AuditLogsPage() {
           <p className="text-slate-300">
             กำลังโหลด Audit Log...
           </p>
+
         </div>
       </main>
     );
@@ -240,7 +255,9 @@ export default function AuditLogsPage() {
   ) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
+
         <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-8 text-center shadow-2xl">
+
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-3xl">
             🔒
           </div>
@@ -263,7 +280,9 @@ export default function AuditLogsPage() {
           >
             ← กลับ Dashboard
           </button>
+
         </div>
+
       </main>
     );
   }
@@ -272,10 +291,13 @@ export default function AuditLogsPage() {
     <main className="min-h-screen bg-slate-950 text-white">
 
       {/* Background */}
+
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
+
         <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
 
         <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
+
       </div>
 
       <div className="relative mx-auto max-w-7xl px-6 py-8">
@@ -291,6 +313,7 @@ export default function AuditLogsPage() {
             </div>
 
             <div>
+
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">
                 System Monitoring
               </p>
@@ -302,6 +325,7 @@ export default function AuditLogsPage() {
               <p className="mt-1 text-sm text-slate-400">
                 ตรวจสอบประวัติการเปลี่ยนแปลงข้อมูลในระบบ
               </p>
+
             </div>
 
           </div>
@@ -379,9 +403,10 @@ export default function AuditLogsPage() {
 
           <div className="border-b border-slate-800 p-6">
 
-            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
               <div>
+
                 <h2 className="text-xl font-bold">
                   System Activity
                 </h2>
@@ -389,11 +414,20 @@ export default function AuditLogsPage() {
                 <p className="mt-1 text-sm text-slate-500">
                   ประวัติการเพิ่ม แก้ไข และลบข้อมูล
                 </p>
+
               </div>
 
-              <div className="rounded-full border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-slate-300">
-                {filteredLogs.length} /{" "}
-                {logs.length} รายการ
+              <div className="flex flex-wrap items-center gap-3">
+
+                <div className="rounded-full border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-slate-300">
+                  {filteredLogs.length} /{" "}
+                  {logs.length} รายการ
+                </div>
+
+                <ExportCsvButton
+                  logs={exportLogs}
+                />
+
               </div>
 
             </div>
@@ -411,6 +445,7 @@ export default function AuditLogsPage() {
                 }
                 className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-slate-200 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               >
+
                 <option value="">
                   ทุก Action
                 </option>
@@ -426,6 +461,7 @@ export default function AuditLogsPage() {
                 <option value="DELETE">
                   DELETE
                 </option>
+
               </select>
 
               <select
@@ -437,6 +473,7 @@ export default function AuditLogsPage() {
                 }
                 className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-slate-200 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               >
+
                 <option value="">
                   ทุก Table
                 </option>
@@ -452,6 +489,7 @@ export default function AuditLogsPage() {
                 <option value="maintenance_records">
                   Maintenance
                 </option>
+
               </select>
 
               <input
@@ -521,6 +559,7 @@ export default function AuditLogsPage() {
               <tbody>
 
                 {filteredLogs.length === 0 ? (
+
                   <tr>
 
                     <td
@@ -543,8 +582,11 @@ export default function AuditLogsPage() {
                     </td>
 
                   </tr>
+
                 ) : (
+
                   filteredLogs.map((log) => (
+
                     <tr
                       key={log.id}
                       className="border-t border-slate-800 transition hover:bg-slate-800/40"
@@ -567,6 +609,7 @@ export default function AuditLogsPage() {
                       <td className="px-6 py-5">
 
                         <div>
+
                           <p className="font-semibold text-white">
                             {getUserName(
                               log.user_id
@@ -578,6 +621,7 @@ export default function AuditLogsPage() {
                               log.user_id
                             )}
                           </p>
+
                         </div>
 
                       </td>
@@ -591,6 +635,7 @@ export default function AuditLogsPage() {
                             log.action
                           )}`}
                         >
+
                           <span>
                             {getActionIcon(
                               log.action
@@ -598,6 +643,7 @@ export default function AuditLogsPage() {
                           </span>
 
                           {log.action}
+
                         </span>
 
                       </td>
@@ -633,7 +679,9 @@ export default function AuditLogsPage() {
                           <div className="mt-3 space-y-3">
 
                             {log.old_data && (
+
                               <div>
+
                                 <p className="mb-1 text-xs font-semibold uppercase text-red-400">
                                   Old Data
                                 </p>
@@ -645,11 +693,15 @@ export default function AuditLogsPage() {
                                     2
                                   )}
                                 </pre>
+
                               </div>
+
                             )}
 
                             {log.new_data && (
+
                               <div>
+
                                 <p className="mb-1 text-xs font-semibold uppercase text-emerald-400">
                                   New Data
                                 </p>
@@ -661,7 +713,9 @@ export default function AuditLogsPage() {
                                     2
                                   )}
                                 </pre>
+
                               </div>
+
                             )}
 
                           </div>
@@ -671,7 +725,9 @@ export default function AuditLogsPage() {
                       </td>
 
                     </tr>
+
                   ))
+
                 )}
 
               </tbody>
@@ -689,6 +745,7 @@ export default function AuditLogsPage() {
         </p>
 
       </div>
+
     </main>
   );
 }
@@ -712,6 +769,7 @@ function MiniStat({
       <div className="flex items-center justify-between">
 
         <div>
+
           <p className="text-sm text-slate-500">
             {title}
           </p>
@@ -719,6 +777,7 @@ function MiniStat({
           <p className="mt-2 text-2xl font-bold text-white">
             {value}
           </p>
+
         </div>
 
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-lg">

@@ -105,6 +105,7 @@ export default async function DashboardPage() {
 
               <div>
                 <div className="flex items-center gap-3">
+
                   <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                     Automation Alarm
                   </h1>
@@ -112,6 +113,7 @@ export default async function DashboardPage() {
                   <span className="hidden rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 sm:inline-block">
                     ● SYSTEM ONLINE
                   </span>
+
                 </div>
 
                 <p className="mt-1 text-sm text-slate-400">
@@ -122,9 +124,11 @@ export default async function DashboardPage() {
             </div>
 
             {/* User */}
+
             <div className="flex items-center gap-4">
 
               <div className="hidden text-right sm:block">
+
                 <p className="text-sm font-semibold text-white">
                   {profile?.full_name || user.email}
                 </p>
@@ -132,6 +136,7 @@ export default async function DashboardPage() {
                 <p className="mt-1 text-xs uppercase tracking-wider text-slate-500">
                   {profile?.role || "user"}
                 </p>
+
               </div>
 
               <LogoutButton />
@@ -194,6 +199,7 @@ export default async function DashboardPage() {
         <section className="mb-8">
 
           <div className="mb-4">
+
             <h2 className="text-xl font-bold text-white">
               Alarm Overview
             </h2>
@@ -201,6 +207,7 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm text-slate-500">
               จำนวน Alarm แยกตามสถานะ
             </p>
+
           </div>
 
           <AlarmChart data={alarmChartData} />
@@ -212,6 +219,7 @@ export default async function DashboardPage() {
         <section className="mb-8">
 
           <div className="mb-4">
+
             <h2 className="text-xl font-bold text-white">
               Machine Status
             </h2>
@@ -219,6 +227,7 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm text-slate-500">
               สถานะปัจจุบันของเครื่องจักร
             </p>
+
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -260,6 +269,7 @@ export default async function DashboardPage() {
         <section>
 
           <div className="mb-4">
+
             <h2 className="text-xl font-bold text-white">
               Management
             </h2>
@@ -267,9 +277,12 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm text-slate-500">
               จัดการข้อมูลของระบบ
             </p>
+
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          {/* 4 Management Cards */}
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
 
             <ManagementCard
               href="/machines"
@@ -290,6 +303,13 @@ export default async function DashboardPage() {
               icon="🔧"
               title="Maintenance"
               description="บันทึกและติดตามงานบำรุงรักษาเครื่องจักร"
+            />
+
+            <ManagementCard
+              href="/audit-logs"
+              icon="📝"
+              title="Audit Log"
+              description="ตรวจสอบประวัติการเพิ่ม แก้ไข และลบข้อมูล"
             />
 
           </div>
@@ -340,6 +360,7 @@ function StatCard({
       <div className="flex items-start justify-between">
 
         <div>
+
           <p className="text-sm font-medium text-slate-400">
             {title}
           </p>
@@ -351,6 +372,7 @@ function StatCard({
           <p className="mt-2 text-xs text-slate-500">
             {description}
           </p>
+
         </div>
 
         <div
@@ -421,9 +443,7 @@ function StatusCard({
             {title}
           </p>
 
-          <p
-            className={`mt-2 text-3xl font-bold ${current.text}`}
-          >
+          <p className={`mt-2 text-3xl font-bold ${current.text}`}>
             {value}
           </p>
 
