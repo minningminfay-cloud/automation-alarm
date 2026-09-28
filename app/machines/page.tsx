@@ -504,11 +504,9 @@ export default function MachinesPage() {
                     Status
                   </th>
 
-                  {role === "admin" && (
-                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Actions
-                    </th>
-                  )}
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Actions
+                  </th>
 
                 </tr>
 
@@ -520,7 +518,7 @@ export default function MachinesPage() {
                   <tr>
 
                     <td
-                      colSpan={role === "admin" ? 5 : 4}
+                      colSpan={5}
                       className="p-12 text-center"
                     >
 
@@ -590,33 +588,40 @@ export default function MachinesPage() {
 
                       {/* Actions */}
 
-                      {role === "admin" && (
-                        <td className="px-6 py-5">
+                      <td className="px-6 py-5">
+                        <div className="flex flex-wrap gap-2">
 
-                          <div className="flex gap-2">
+                        {/* History - ทุก Role */}
+                        <button
+                          onClick={() =>
+                            (window.location.href = `/machines/${machine.id}/history`)
+                          }
+                          className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-400 transition hover:bg-blue-500/20"
+                        >
+                          📋 History
+                        </button>
 
+                        {/* Admin Actions */}
+                        {role === "admin" && (
+                          <>
                             <button
-                              onClick={() =>
-                                handleEdit(machine)
-                              }
+                              onClick={() => handleEdit(machine)}
                               className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-400 transition hover:bg-amber-500/20"
                             >
                               ✏️ แก้ไข
                             </button>
 
                             <button
-                              onClick={() =>
-                                handleDelete(machine.id)
-                              }
+                              onClick={() => handleDelete(machine.id)}
                               className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
                             >
                               🗑️ ลบ
                             </button>
+                          </>
+                        )}
 
-                          </div>
-
-                        </td>
-                      )}
+                       </div>
+                  </td>
 
                     </tr>
                   ))
