@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import ThemeToggle from "../components/ThemeToggle";
 
 type Machine = {
   id: number;
@@ -29,7 +30,10 @@ export default function AlarmsPage() {
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Admin form
+  // =========================
+  // Admin Form
+  // =========================
+
   const [machineId, setMachineId] = useState("");
   const [alarmCode, setAlarmCode] = useState("");
   const [description, setDescription] = useState("");
@@ -41,11 +45,16 @@ export default function AlarmsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
 
+  // =========================
   // Filters
+  // =========================
+
   const [machineFilter, setMachineFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [alarmCodeFilter, setAlarmCodeFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
 
   // =========================
   // Load Data
@@ -135,24 +144,60 @@ export default function AlarmsPage() {
     event.preventDefault();
     setMessage("");
 
-    if (
-      !machineId ||
-      !alarmCode ||
-      !description ||
-      !alarmDatetime
-    ) {
-      setMessage("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");
+    const cleanMachineId = machineId.trim();
+    const cleanAlarmCode = alarmCode.trim();
+    const cleanDescription = description.trim();
+    const cleanCause = cause.trim();
+
+    if (!cleanMachineId) {
+      setMessage("กรุณาเลือกเครื่องจักร");
       return;
     }
-
-    const cleanAlarmCode = alarmCode.trim();
 
     if (!cleanAlarmCode) {
       setMessage("กรุณากรอก Alarm Code");
       return;
     }
 
-    // Check duplicate Alarm Code
+    if (!cleanDescription) {
+      setMessage("กรุณากรอก Description");
+      return;
+    }
+
+    if (!alarmDatetime) {
+      setMessage("กรุณาเลือกวันที่และเวลาของ Alarm");
+      return;
+    }
+
+    if (!cleanCause) {
+      setMessage("กรุณากรอก Cause หรือสาเหตุของ Alarm");
+      return;
+    }
+
+    if (cleanAlarmCode.length < 2) {
+      setMessage(
+        "Alarm Code ต้องมีอย่างน้อย 2 ตัวอักษร"
+      );
+      return;
+    }
+
+    if (cleanDescription.length < 3) {
+      setMessage(
+        "Description ต้องมีอย่างน้อย 3 ตัวอักษร"
+      );
+      return;
+    }
+
+    const alarmCodePattern = /^[A-Za-z0-9]+-\d+$/;
+
+    if (!alarmCodePattern.test(cleanAlarmCode)) {
+      setMessage(
+        "Alarm Code ต้องอยู่ในรูปแบบ เช่น ALM-001 หรือ TEMP-01"
+      );
+      return;
+    }
+
+    // Check Duplicate Alarm Code
     const {
       data: duplicateAlarms,
       error: duplicateError,
@@ -179,27 +224,19 @@ export default function AlarmsPage() {
       return;
     }
 
-    // =========================
-    // Alarm Data
-    // =========================
-    // เลือกวันที่จาก input type="date"
-    // แล้วบันทึกเวลาเป็น 00:00:00
     const alarmData = {
-      machine_id: Number(machineId),
+      machine_id: Number(cleanMachineId),
       alarm_code: cleanAlarmCode,
-      description: description.trim(),
+      description: cleanDescription,
       alarm_datetime: new Date(
         `${alarmDatetime}T00:00:00`
       ).toISOString(),
-      cause: cause.trim() || null,
+      cause: cleanCause,
       status,
     };
 
-    // =========================
     // Edit
-    // =========================
-
-    if (editingId) {
+    if (editingId !== null) {
       const { error } = await supabase
         .from("alarms")
         .update(alarmData)
@@ -212,10 +249,7 @@ export default function AlarmsPage() {
 
       setMessage("แก้ไข Alarm สำเร็จ");
     } else {
-      // =========================
       // Add
-      // =========================
-
       const { error } = await supabase
         .from("alarms")
         .insert(alarmData);
@@ -242,9 +276,9 @@ export default function AlarmsPage() {
     setAlarmCode(alarm.alarm_code);
     setDescription(alarm.description);
 
-    // Convert database datetime
-    // to YYYY-MM-DD for input type="date"
-    const date = new Date(alarm.alarm_datetime);
+    const date = new Date(
+      alarm.alarm_datetime
+    );
 
     const localDate = new Date(
       date.getTime() -
@@ -254,10 +288,14 @@ export default function AlarmsPage() {
       .slice(0, 10);
 
     setAlarmDatetime(localDate);
-
     setCause(alarm.cause ?? "");
     setStatus(alarm.status);
     setMessage("");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
 
   // =========================
@@ -265,7 +303,11 @@ export default function AlarmsPage() {
   // =========================
 
   async function handleDelete(id: number) {
-    if (!confirm("ต้องการลบ Alarm นี้ใช่หรือไม่?")) {
+    if (
+      !confirm(
+        "ต้องการลบ Alarm นี้ใช่หรือไม่?"
+      )
+    ) {
       return;
     }
 
@@ -307,7 +349,9 @@ export default function AlarmsPage() {
       return;
     }
 
-    setMessage("เปลี่ยนสถานะ Alarm สำเร็จ");
+    setMessage(
+      "เปลี่ยนสถานะ Alarm สำเร็จ"
+    );
 
     await loadData();
   }
@@ -329,41 +373,70 @@ export default function AlarmsPage() {
   }
 
   // =========================
+  // Date Range Validation
+  // =========================
+
+  const invalidDateRange =
+    Boolean(dateFromFilter) &&
+    Boolean(dateToFilter) &&
+    dateFromFilter > dateToFilter;
+
+  // =========================
   // Filtered Alarm
   // =========================
 
-  const filteredAlarms = alarms.filter((alarm) => {
-    const machineMatch =
-      !machineFilter ||
-      String(alarm.machine_id) === machineFilter;
+  const filteredAlarms = alarms.filter(
+    (alarm) => {
+      if (invalidDateRange) {
+        return false;
+      }
 
-    const statusMatch =
-      !statusFilter ||
-      alarm.status === statusFilter;
+      const machineMatch =
+        !machineFilter ||
+        String(alarm.machine_id) ===
+          machineFilter;
 
-    const alarmCodeMatch =
-      !alarmCodeFilter ||
-      alarm.alarm_code
-        .toLowerCase()
-        .includes(alarmCodeFilter.toLowerCase());
+      const statusMatch =
+        !statusFilter ||
+        alarm.status === statusFilter;
 
-    const alarmDate = new Date(
-      alarm.alarm_datetime
-    )
-      .toISOString()
-      .slice(0, 10);
+      const alarmCodeMatch =
+        !alarmCodeFilter ||
+        alarm.alarm_code
+          .toLowerCase()
+          .includes(
+            alarmCodeFilter.toLowerCase()
+          );
 
-    const dateMatch =
-      !dateFilter ||
-      alarmDate === dateFilter;
+      const alarmDate = new Date(
+        alarm.alarm_datetime
+      );
 
-    return (
-      machineMatch &&
-      statusMatch &&
-      alarmCodeMatch &&
-      dateMatch
-    );
-  });
+      const localAlarmDate = new Date(
+        alarmDate.getTime() -
+          alarmDate.getTimezoneOffset() *
+            60000
+      )
+        .toISOString()
+        .slice(0, 10);
+
+      const fromDateMatch =
+        !dateFromFilter ||
+        localAlarmDate >= dateFromFilter;
+
+      const toDateMatch =
+        !dateToFilter ||
+        localAlarmDate <= dateToFilter;
+
+      return (
+        machineMatch &&
+        statusMatch &&
+        alarmCodeMatch &&
+        fromDateMatch &&
+        toDateMatch
+      );
+    }
+  );
 
   // =========================
   // Loading
@@ -371,11 +444,11 @@ export default function AlarmsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+      <main className="flex min-h-screen items-center justify-center bg-white px-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-blue-500" />
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500 dark:border-slate-700 dark:border-t-blue-500" />
 
-          <p className="text-slate-400">
+          <p className="text-slate-600 dark:text-slate-400">
             กำลังโหลดข้อมูล Alarm...
           </p>
         </div>
@@ -392,7 +465,8 @@ export default function AlarmsPage() {
   ).length;
 
   const progressCount = alarms.filter(
-    (alarm) => alarm.status === "In Progress"
+    (alarm) =>
+      alarm.status === "In Progress"
   ).length;
 
   const closedCount = alarms.filter(
@@ -404,13 +478,13 @@ export default function AlarmsPage() {
   // =========================
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white p-4 md:p-6 relative overflow-hidden">
+    <main className="relative min-h-screen overflow-hidden bg-white p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white md:p-6">
 
       {/* Background Decoration */}
 
-      <div className="absolute top-0 left-0 h-72 w-72 rounded-full bg-blue-600/10 blur-3xl pointer-events-none" />
+      <div className="pointer-events-none absolute left-0 top-0 h-72 w-72 rounded-full bg-blue-600/10 blur-3xl" />
 
-      <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+      <div className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
 
       <div className="relative mx-auto max-w-7xl">
 
@@ -418,23 +492,23 @@ export default function AlarmsPage() {
             Header
         ========================= */}
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        <div className="mb-6 flex flex-col gap-4 sm:mb-8 md:flex-row md:items-center md:justify-between">
 
-          <div>
+          <div className="min-w-0">
 
-            <div className="flex items-center gap-3 mb-2">
+            <div className="mb-2 flex items-center gap-3">
 
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 text-2xl">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 text-xl sm:h-12 sm:w-12 sm:text-2xl">
                 🚨
               </div>
 
-              <div>
+              <div className="min-w-0">
 
-                <p className="text-xs uppercase tracking-[0.25em] text-red-400">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-red-400 sm:text-xs sm:tracking-[0.25em]">
                   Industrial System
                 </p>
 
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
                   Alarm Management
                 </h1>
 
@@ -442,20 +516,27 @@ export default function AlarmsPage() {
 
             </div>
 
-            <p className="text-slate-400">
+            <p className="text-sm text-slate-600 dark:text-slate-400 sm:text-base">
               จัดการและติดตาม Alarm ของเครื่องจักร
             </p>
 
           </div>
 
-          <button
-            onClick={() =>
-              (window.location.href = "/dashboard")
-            }
-            className="rounded-xl border border-slate-700 bg-slate-900 px-5 py-3 font-medium text-slate-200 transition hover:bg-slate-800 hover:border-slate-600"
-          >
-            ← Dashboard
-          </button>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+
+            <ThemeToggle />
+
+            <button
+              onClick={() =>
+                (window.location.href =
+                  "/dashboard")
+              }
+              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800 sm:flex-none sm:px-5"
+            >
+              ← Dashboard
+            </button>
+
+          </div>
 
         </div>
 
@@ -463,7 +544,7 @@ export default function AlarmsPage() {
             Summary Cards
         ========================= */}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
 
           <SummaryCard
             title="Open"
@@ -493,23 +574,25 @@ export default function AlarmsPage() {
         ========================= */}
 
         {role === "admin" && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl shadow-black/20 p-6 mb-6">
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/50 transition-colors dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/20 sm:p-6">
 
-            <div className="flex items-center gap-3 mb-6">
+            <div className="mb-6 flex items-center gap-3">
 
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20">
-                {editingId ? "✏️" : "➕"}
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10">
+                {editingId
+                  ? "✏️"
+                  : "➕"}
               </div>
 
-              <div>
+              <div className="min-w-0">
 
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white sm:text-xl">
                   {editingId
                     ? "แก้ไข Alarm"
                     : "เพิ่ม Alarm"}
                 </h2>
 
-                <p className="text-sm text-slate-400">
+                <p className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
                   {editingId
                     ? "แก้ไขข้อมูล Alarm ที่เลือก"
                     : "บันทึกข้อมูล Alarm ใหม่เข้าสู่ระบบ"}
@@ -521,34 +604,30 @@ export default function AlarmsPage() {
 
             <form
               onSubmit={handleSubmit}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+              className="grid grid-cols-1 gap-4 md:grid-cols-2"
             >
-
-              {/* Machine */}
 
               <FormSelect
                 label="Machine"
                 value={machineId}
                 onChange={setMachineId}
               >
-
                 <option value="">
                   -- เลือกเครื่องจักร --
                 </option>
 
-                {machines.map((machine) => (
-                  <option
-                    key={machine.id}
-                    value={machine.id}
-                  >
-                    {machine.machine_id} -{" "}
-                    {machine.name}
-                  </option>
-                ))}
-
+                {machines.map(
+                  (machine) => (
+                    <option
+                      key={machine.id}
+                      value={machine.id}
+                    >
+                      {machine.machine_id} -{" "}
+                      {machine.name}
+                    </option>
+                  )
+                )}
               </FormSelect>
-
-              {/* Alarm Code */}
 
               <FormInput
                 label="Alarm Code"
@@ -556,9 +635,8 @@ export default function AlarmsPage() {
                 onChange={setAlarmCode}
                 placeholder="เช่น ALM-001"
                 required
+                maxLength={50}
               />
-
-              {/* Description */}
 
               <FormInput
                 label="Description"
@@ -566,9 +644,8 @@ export default function AlarmsPage() {
                 onChange={setDescription}
                 placeholder="รายละเอียดของ Alarm"
                 required
+                maxLength={500}
               />
-
-              {/* Alarm Date */}
 
               <FormInput
                 label="Alarm Date"
@@ -578,16 +655,14 @@ export default function AlarmsPage() {
                 required
               />
 
-              {/* Cause */}
-
               <FormInput
                 label="Cause"
                 value={cause}
                 onChange={setCause}
                 placeholder="สาเหตุของ Alarm"
+                required
+                maxLength={500}
               />
-
-              {/* Status */}
 
               <FormSelect
                 label="Status"
@@ -598,25 +673,23 @@ export default function AlarmsPage() {
                   )
                 }
               >
-
-                {statuses.map((item) => (
-                  <option
-                    key={item}
-                    value={item}
-                  >
-                    {item}
-                  </option>
-                ))}
-
+                {statuses.map(
+                  (item) => (
+                    <option
+                      key={item}
+                      value={item}
+                    >
+                      {item}
+                    </option>
+                  )
+                )}
               </FormSelect>
 
-              {/* Buttons */}
-
-              <div className="md:col-span-2 flex flex-wrap gap-3 pt-2">
+              <div className="flex flex-col gap-2 pt-2 sm:flex-row md:col-span-2">
 
                 <button
                   type="submit"
-                  className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-500 shadow-lg shadow-blue-900/20"
+                  className="w-full rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white shadow-lg shadow-blue-900/20 transition hover:bg-blue-500 sm:w-auto"
                 >
                   {editingId
                     ? "บันทึกการแก้ไข"
@@ -627,7 +700,7 @@ export default function AlarmsPage() {
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="rounded-xl border border-slate-700 bg-slate-800 px-6 py-3 font-medium text-slate-200 transition hover:bg-slate-700"
+                    className="w-full rounded-xl border border-slate-300 bg-slate-100 px-6 py-3 font-medium text-slate-700 transition hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:w-auto"
                   >
                     ยกเลิก
                   </button>
@@ -645,11 +718,13 @@ export default function AlarmsPage() {
         ========================= */}
 
         {message && (
-          <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/10 px-5 py-4 text-blue-300 shadow-lg">
+          <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-4 text-blue-600 shadow-lg dark:text-blue-300 sm:px-5">
 
-            <div className="flex items-center gap-3">
-              <span>ℹ️</span>
-              <span>{message}</span>
+            <div className="flex items-start gap-3">
+              <span className="shrink-0">ℹ️</span>
+              <span className="text-sm break-words">
+                {message}
+              </span>
             </div>
 
           </div>
@@ -659,31 +734,31 @@ export default function AlarmsPage() {
             Alarm List
         ========================= */}
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl shadow-black/20 overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50 transition-colors dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/20">
 
           {/* List Header */}
 
-          <div className="p-6 border-b border-slate-800">
+          <div className="border-b border-slate-200 p-4 dark:border-slate-800 sm:p-6">
 
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+            <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 
               <div>
 
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
                   Alarm List
                 </h2>
 
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                   รายการ Alarm ทั้งหมดในระบบ
                 </p>
 
               </div>
 
-              <div className="rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-300">
+              <div className="w-fit rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
 
                 พบ{" "}
 
-                <span className="font-bold text-white">
+                <span className="font-bold text-slate-900 dark:text-white">
                   {filteredAlarms.length}
                 </span>{" "}
 
@@ -695,92 +770,127 @@ export default function AlarmsPage() {
 
             {/* Filters */}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-
-              {/* Machine */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
 
               <FilterSelect
                 value={machineFilter}
                 onChange={setMachineFilter}
               >
-
                 <option value="">
                   ทุกเครื่องจักร
                 </option>
 
-                {machines.map((machine) => (
-                  <option
-                    key={machine.id}
-                    value={machine.id}
-                  >
-                    {machine.machine_id} -{" "}
-                    {machine.name}
-                  </option>
-                ))}
-
+                {machines.map(
+                  (machine) => (
+                    <option
+                      key={machine.id}
+                      value={machine.id}
+                    >
+                      {machine.machine_id} -{" "}
+                      {machine.name}
+                    </option>
+                  )
+                )}
               </FilterSelect>
-
-              {/* Status */}
 
               <FilterSelect
                 value={statusFilter}
                 onChange={setStatusFilter}
               >
-
                 <option value="">
                   ทุกสถานะ
                 </option>
 
-                {statuses.map((item) => (
-                  <option
-                    key={item}
-                    value={item}
-                  >
-                    {item}
-                  </option>
-                ))}
-
+                {statuses.map(
+                  (item) => (
+                    <option
+                      key={item}
+                      value={item}
+                    >
+                      {item}
+                    </option>
+                  )
+                )}
               </FilterSelect>
-
-              {/* Alarm Code */}
 
               <input
                 value={alarmCodeFilter}
                 onChange={(e) =>
-                  setAlarmCodeFilter(e.target.value)
+                  setAlarmCodeFilter(
+                    e.target.value
+                  )
                 }
                 placeholder="🔎 ค้นหา Alarm Code"
-                className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500"
               />
 
-              {/* Date Filter */}
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                  ตั้งแต่วันที่
+                </label>
 
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) =>
-                  setDateFilter(e.target.value)
-                }
-                style={{
-                  colorScheme: "dark",
-                }}
-                className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              />
+                <input
+                  type="date"
+                  value={dateFromFilter}
+                  max={
+                    dateToFilter ||
+                    undefined
+                  }
+                  onChange={(e) =>
+                    setDateFromFilter(
+                      e.target.value
+                    )
+                  }
+                  style={{
+                    colorScheme: "light",
+                  }}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                  ถึงวันที่
+                </label>
+
+                <input
+                  type="date"
+                  value={dateToFilter}
+                  min={
+                    dateFromFilter ||
+                    undefined
+                  }
+                  onChange={(e) =>
+                    setDateToFilter(
+                      e.target.value
+                    )
+                  }
+                  style={{
+                    colorScheme: "light",
+                  }}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                />
+              </div>
 
             </div>
 
-            {/* Filter Actions */}
+            {invalidDateRange && (
+              <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
+                ⚠️ วันที่เริ่มต้นต้องไม่มากกว่าวันที่สิ้นสุด
+              </div>
+            )}
 
-            <div className="flex justify-end mt-4">
+            <div className="mt-4 flex justify-start sm:justify-end">
 
               <button
                 onClick={() => {
                   setMachineFilter("");
                   setStatusFilter("");
                   setAlarmCodeFilter("");
-                  setDateFilter("");
+                  setDateFromFilter("");
+                  setDateToFilter("");
                 }}
-                className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"
+                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white sm:w-auto"
               >
                 ↻ ล้างตัวกรอง
               </button>
@@ -790,43 +900,43 @@ export default function AlarmsPage() {
           </div>
 
           {/* =========================
-              Table
+              Desktop Table
           ========================= */}
 
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
 
             <table className="w-full min-w-[1100px]">
 
-              <thead className="bg-slate-950/80">
+              <thead className="bg-slate-100 dark:bg-slate-950/80">
 
-                <tr className="border-b border-slate-800">
+                <tr className="border-b border-slate-200 dark:border-slate-800">
 
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500">
                     Machine
                   </th>
 
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500">
                     Alarm Code
                   </th>
 
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500">
                     Description
                   </th>
 
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500">
                     Date / Time
                   </th>
 
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500">
                     Cause
                   </th>
 
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500">
                     Status
                   </th>
 
                   {role === "admin" && (
-                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500">
                       Actions
                     </th>
                   )}
@@ -842,201 +952,279 @@ export default function AlarmsPage() {
 
                     <td
                       colSpan={
-                        role === "admin" ? 7 : 6
+                        role === "admin"
+                          ? 7
+                          : 6
                       }
                       className="px-6 py-16 text-center"
                     >
 
-                      <div className="text-4xl mb-3">
-                        📭
-                      </div>
-
-                      <p className="font-medium text-slate-300">
-                        ไม่พบข้อมูล Alarm
-                      </p>
-
-                      <p className="text-sm text-slate-500 mt-1">
-                        ลองเปลี่ยนเงื่อนไขการค้นหาหรือตัวกรอง
-                      </p>
+                      <EmptyState />
 
                     </td>
 
                   </tr>
                 ) : (
-                  filteredAlarms.map((alarm) => (
-                    <tr
-                      key={alarm.id}
-                      className="border-b border-slate-800/70 transition hover:bg-slate-800/40"
-                    >
-
-                      {/* Machine */}
-
-                      <td className="px-5 py-5">
-
-                        <div className="flex items-center gap-3">
-
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800 text-sm">
-                            🏭
-                          </div>
-
-                          <div>
-
-                            <p className="font-medium text-white">
-                              {
-                                getMachineName(
-                                  alarm.machine_id
-                                ).split(" - ")[0]
-                              }
-                            </p>
-
-                            <p className="text-xs text-slate-500">
-                              {
-                                getMachineName(
-                                  alarm.machine_id
-                                ).split(" - ")[1]
-                              }
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                      </td>
-
-                      {/* Alarm Code */}
-
-                      <td className="px-5 py-5">
-
-                        <span className="inline-flex rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 font-mono text-sm font-semibold text-red-300">
-                          {alarm.alarm_code}
-                        </span>
-
-                      </td>
-
-                      {/* Description */}
-
-                      <td className="px-5 py-5 max-w-xs">
-
-                        <p className="text-sm text-slate-300">
-                          {alarm.description}
-                        </p>
-
-                      </td>
-
-                      {/* Date */}
-
-                      <td className="px-5 py-5">
-
-                        <p className="text-sm text-slate-300">
-                          {new Date(
-                            alarm.alarm_datetime
-                          ).toLocaleDateString(
-                            "th-TH"
-                          )}
-                        </p>
-
-                        <p className="text-xs text-slate-500 mt-1">
-                          {new Date(
-                            alarm.alarm_datetime
-                          ).toLocaleTimeString(
-                            "th-TH",
-                            {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            }
-                          )}
-                        </p>
-
-                      </td>
-
-                      {/* Cause */}
-
-                      <td className="px-5 py-5 max-w-xs">
-
-                        <p className="text-sm text-slate-400">
-                          {alarm.cause || "-"}
-                        </p>
-
-                      </td>
-
-                      {/* Status */}
-
-                      <td className="px-5 py-5">
-
-                        {role === "technician" ? (
-
-                          <select
-                            value={alarm.status}
-                            onChange={(e) =>
-                              handleStatusChange(
-                                alarm.id,
-                                e.target
-                                  .value as Alarm["status"]
-                              )
-                            }
-                            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
-                          >
-
-                            {statuses.map((item) => (
-                              <option
-                                key={item}
-                                value={item}
-                              >
-                                {item}
-                              </option>
-                            ))}
-
-                          </select>
-
-                        ) : (
-
-                          <StatusBadge
-                            status={alarm.status}
-                          />
-
-                        )}
-
-                      </td>
-
-                      {/* Admin Actions */}
-
-                      {role === "admin" && (
+                  filteredAlarms.map(
+                    (alarm) => (
+                      <tr
+                        key={alarm.id}
+                        className="border-b border-slate-200 transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40"
+                      >
 
                         <td className="px-5 py-5">
 
-                          <div className="flex gap-2">
-
-                            <button
-                              onClick={() =>
-                                handleEdit(alarm)
-                              }
-                              className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-sm font-medium text-yellow-300 transition hover:bg-yellow-500/20"
-                            >
-                              ✏️ แก้ไข
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleDelete(alarm.id)
-                              }
-                              className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/20"
-                            >
-                              🗑 ลบ
-                            </button>
-
-                          </div>
+                          <MachineInfo
+                            name={getMachineName(
+                              alarm.machine_id
+                            )}
+                          />
 
                         </td>
 
-                      )}
+                        <td className="px-5 py-5">
 
-                    </tr>
-                  ))
+                          <AlarmCodeBadge
+                            code={
+                              alarm.alarm_code
+                            }
+                          />
+
+                        </td>
+
+                        <td className="max-w-xs px-5 py-5">
+
+                          <p className="text-sm text-slate-700 dark:text-slate-300">
+                            {alarm.description}
+                          </p>
+
+                        </td>
+
+                        <td className="px-5 py-5">
+
+                          <DateTimeDisplay
+                            dateTime={
+                              alarm.alarm_datetime
+                            }
+                          />
+
+                        </td>
+
+                        <td className="max-w-xs px-5 py-5">
+
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
+                            {alarm.cause ||
+                              "-"}
+                          </p>
+
+                        </td>
+
+                        <td className="px-5 py-5">
+
+                          {role ===
+                          "technician" ? (
+                            <StatusSelect
+                              status={
+                                alarm.status
+                              }
+                              onChange={(
+                                newStatus
+                              ) =>
+                                handleStatusChange(
+                                  alarm.id,
+                                  newStatus
+                                )
+                              }
+                            />
+                          ) : (
+                            <StatusBadge
+                              status={
+                                alarm.status
+                              }
+                            />
+                          )}
+
+                        </td>
+
+                        {role === "admin" && (
+                          <td className="px-5 py-5">
+
+                            <AdminActions
+                              onEdit={() =>
+                                handleEdit(
+                                  alarm
+                                )
+                              }
+                              onDelete={() =>
+                                handleDelete(
+                                  alarm.id
+                                )
+                              }
+                            />
+
+                          </td>
+                        )}
+
+                      </tr>
+                    )
+                  )
                 )}
 
               </tbody>
 
             </table>
+
+          </div>
+
+          {/* =========================
+              Mobile Cards
+          ========================= */}
+
+          <div className="block md:hidden">
+
+            {filteredAlarms.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <EmptyState />
+              </div>
+            ) : (
+              <div className="space-y-3 p-3 sm:p-4">
+
+                {filteredAlarms.map(
+                  (alarm) => (
+                    <div
+                      key={alarm.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition dark:border-slate-800 dark:bg-slate-950/60"
+                    >
+
+                      {/* Card Header */}
+
+                      <div className="flex items-start justify-between gap-3">
+
+                        <div className="min-w-0">
+
+                          <MachineInfo
+                            name={getMachineName(
+                              alarm.machine_id
+                            )}
+                          />
+
+                        </div>
+
+                        <AlarmCodeBadge
+                          code={
+                            alarm.alarm_code
+                          }
+                        />
+
+                      </div>
+
+                      {/* Description */}
+
+                      <div className="mt-4">
+
+                        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                          Description
+                        </p>
+
+                        <p className="break-words text-sm text-slate-700 dark:text-slate-300">
+                          {alarm.description}
+                        </p>
+
+                      </div>
+
+                      {/* Date / Time */}
+
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+
+                        <div>
+
+                          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Date / Time
+                          </p>
+
+                          <DateTimeDisplay
+                            dateTime={
+                              alarm.alarm_datetime
+                            }
+                          />
+
+                        </div>
+
+                        <div>
+
+                          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Status
+                          </p>
+
+                          {role ===
+                          "technician" ? (
+                            <StatusSelect
+                              status={
+                                alarm.status
+                              }
+                              onChange={(
+                                newStatus
+                              ) =>
+                                handleStatusChange(
+                                  alarm.id,
+                                  newStatus
+                                )
+                              }
+                            />
+                          ) : (
+                            <StatusBadge
+                              status={
+                                alarm.status
+                              }
+                            />
+                          )}
+
+                        </div>
+
+                      </div>
+
+                      {/* Cause */}
+
+                      <div className="mt-4">
+
+                        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                          Cause
+                        </p>
+
+                        <p className="break-words text-sm text-slate-600 dark:text-slate-400">
+                          {alarm.cause ||
+                            "-"}
+                        </p>
+
+                      </div>
+
+                      {/* Admin Actions */}
+
+                      {role === "admin" && (
+                        <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800">
+
+                          <AdminActions
+                            onEdit={() =>
+                              handleEdit(
+                                alarm
+                              )
+                            }
+                            onDelete={() =>
+                              handleDelete(
+                                alarm.id
+                              )
+                            }
+                          />
+
+                        </div>
+                      )}
+
+                    </div>
+                  )
+                )}
+
+              </div>
+            )}
 
           </div>
 
@@ -1064,17 +1252,17 @@ function SummaryCard({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl shadow-black/10">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 transition-colors dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/10">
 
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
 
-        <div>
+        <div className="min-w-0">
 
-          <p className="text-sm font-medium text-slate-400">
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
             {title}
           </p>
 
-          <p className="mt-2 text-3xl font-bold text-white">
+          <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">
             {value}
           </p>
 
@@ -1084,7 +1272,7 @@ function SummaryCard({
 
         </div>
 
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-xl">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xl dark:bg-slate-800">
           {icon}
         </div>
 
@@ -1101,6 +1289,7 @@ function FormInput({
   placeholder,
   type = "text",
   required = false,
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -1108,16 +1297,17 @@ function FormInput({
   placeholder?: string;
   type?: string;
   required?: boolean;
+  maxLength?: number;
 }) {
   return (
     <label className="block">
 
-      <span className="mb-2 block text-sm font-medium text-slate-300">
+      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
 
         {label}
 
         {required && (
-          <span className="text-red-400 ml-1">
+          <span className="ml-1 text-red-400">
             *
           </span>
         )}
@@ -1132,12 +1322,13 @@ function FormInput({
         }
         placeholder={placeholder}
         required={required}
+        maxLength={maxLength}
         style={
           type === "date"
-            ? { colorScheme: "dark" }
+            ? { colorScheme: "light" }
             : undefined
         }
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-600"
       />
 
     </label>
@@ -1158,8 +1349,16 @@ function FormSelect({
   return (
     <label className="block">
 
-      <span className="mb-2 block text-sm font-medium text-slate-300">
+      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+
         {label}
+
+        {label === "Machine" && (
+          <span className="ml-1 text-red-400">
+            *
+          </span>
+        )}
+
       </span>
 
       <select
@@ -1168,7 +1367,7 @@ function FormSelect({
           onChange(e.target.value)
         }
         required={label === "Machine"}
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
       >
         {children}
       </select>
@@ -1192,10 +1391,163 @@ function FilterSelect({
       onChange={(e) =>
         onChange(e.target.value)
       }
-      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
     >
       {children}
     </select>
+  );
+}
+
+function MachineInfo({
+  name,
+}: {
+  name: string;
+}) {
+  const parts = name.split(" - ");
+
+  return (
+    <div className="flex items-center gap-3">
+
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm dark:bg-slate-800">
+        🏭
+      </div>
+
+      <div className="min-w-0">
+
+        <p className="font-medium text-slate-900 dark:text-white">
+          {parts[0]}
+        </p>
+
+        <p className="truncate text-xs text-slate-500">
+          {parts[1] ?? ""}
+        </p>
+
+      </div>
+
+    </div>
+  );
+}
+
+function AlarmCodeBadge({
+  code,
+}: {
+  code: string;
+}) {
+  return (
+    <span className="inline-flex max-w-full rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 font-mono text-xs font-semibold text-red-600 dark:text-red-300 sm:text-sm">
+      {code}
+    </span>
+  );
+}
+
+function DateTimeDisplay({
+  dateTime,
+}: {
+  dateTime: string;
+}) {
+  const date = new Date(dateTime);
+
+  return (
+    <div>
+
+      <p className="text-sm text-slate-700 dark:text-slate-300">
+        {date.toLocaleDateString(
+          "th-TH"
+        )}
+      </p>
+
+      <p className="mt-1 text-xs text-slate-500">
+        {date.toLocaleTimeString(
+          "th-TH",
+          {
+            hour: "2-digit",
+            minute: "2-digit",
+          }
+        )}
+      </p>
+
+    </div>
+  );
+}
+
+function StatusSelect({
+  status,
+  onChange,
+}: {
+  status: Alarm["status"];
+  onChange: (
+    status: Alarm["status"]
+  ) => void;
+}) {
+  return (
+    <select
+      value={status}
+      onChange={(e) =>
+        onChange(
+          e.target.value as Alarm["status"]
+        )
+      }
+      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:w-auto"
+    >
+      {statuses.map(
+        (item) => (
+          <option
+            key={item}
+            value={item}
+          >
+            {item}
+          </option>
+        )
+      )}
+    </select>
+  );
+}
+
+function AdminActions({
+  onEdit,
+  onDelete,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row">
+
+      <button
+        onClick={onEdit}
+        className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-sm font-medium text-yellow-600 transition hover:bg-yellow-500/20 dark:text-yellow-300"
+      >
+        ✏️ แก้ไข
+      </button>
+
+      <button
+        onClick={onDelete}
+        className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-500/20 dark:text-red-300"
+      >
+        🗑 ลบ
+      </button>
+
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div>
+
+      <div className="mb-3 text-4xl">
+        📭
+      </div>
+
+      <p className="font-medium text-slate-700 dark:text-slate-300">
+        ไม่พบข้อมูล Alarm
+      </p>
+
+      <p className="mt-1 text-sm text-slate-500">
+        ลองเปลี่ยนเงื่อนไขการค้นหาหรือตัวกรอง
+      </p>
+
+    </div>
   );
 }
 
@@ -1205,13 +1557,14 @@ function StatusBadge({
   status: Alarm["status"];
 }) {
   const styles = {
-    Open: "border-red-500/20 bg-red-500/10 text-red-300",
+    Open:
+      "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-300",
 
     "In Progress":
-      "border-yellow-500/20 bg-yellow-500/10 text-yellow-300",
+      "border-yellow-500/20 bg-yellow-500/10 text-yellow-600 dark:text-yellow-300",
 
     Closed:
-      "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+      "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
   };
 
   const icons = {
